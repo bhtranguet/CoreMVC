@@ -23,7 +23,10 @@ namespace CoreMVC.Models.BL
         /// <returns></returns>
         public T GetByID(int id)
         {
-            return dl.GetByID(id);
+            using (dl)
+            {
+                return dl.GetByID(id);
+            }
         }
 
         /// <summary>
@@ -53,19 +56,25 @@ namespace CoreMVC.Models.BL
         }
 
         /// <summary>
-        /// Sửa 1 entity
+        /// Cập nhật một entity
         /// </summary>
-        public void Update()
+        public bool Update(int id, T entity)
         {
-            throw new Exception();
+            using (dl)
+            {
+                return dl.Update(id, entity);
+            }
         }
 
         /// <summary>
         /// Xóa một entity
         /// </summary>
-        public void Delete()
+        public int Delete(int id)
         {
-            throw new Exception();
+            using (dl)
+            {
+                return dl.Delete(id);
+            }
         }
     }
 }

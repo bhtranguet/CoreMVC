@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace CoreMVC.Models.DL
 {
-    public class DLBase<T>
+    public class DLBase<T> : IDisposable
     {
         MySqlConnection conn;
         string connectionString = "server=127.0.0.1;uid=bhtrang;pwd=13111997;database=classicmodels";
@@ -124,27 +124,43 @@ namespace CoreMVC.Models.DL
         /// <param name="entity"></param>
         public bool Insert(T entity)
         {
-            List<string> columns = GetColumns(TableName);
-            List<PropertyInfo> properties = entity.GetType().GetProperties().ToList();
+            // Danh sách param của câu insert
+            var insertParam = GetParams(entity);
 
-            // Danh sách tham số
-            Dictionary<string, object> insertParam = new Dictionary<string, object>();
-            foreach (var property in properties)
-            {
-                // Lấy các trường khớp giữa DB và Entity
-                if (columns.Any(column => column.ToLower() == property.Name.ToLower()))
-                {
-                    insertParam.Add(property.Name.ToLower(), property.GetValue(entity));
-                }
-            }
+            // Danh sách các cột khớp giữa DB và Entity
+            var columns = insertParam.Keys.ToList();
 
             // Lấy câu insert
             string insertQuery = BuildInsertQuery(columns, TableName);
 
             // Thực hiện insert
             return Execute(insertQuery, insertParam) > 0;
-            
 
+
+        }
+
+        /// <summary>
+        /// Lấy ra danh sách tham số gồm tên cột và giá trị
+        /// </summary>
+        /// <param name="entity"></param>
+        /// <returns></returns>
+        public Dictionary<string, object> GetParams(T entity)
+        {
+            List<string> columns = GetColumns(TableName);
+
+            List<PropertyInfo> properties = entity.GetType().GetProperties().ToList();
+
+            // Danh sách tham số
+            Dictionary<string, object> param = new Dictionary<string, object>();
+            foreach (var property in properties)
+            {
+                // Lấy các trường khớp giữa DB và Entity
+                if (columns.Any(column => column.ToLower() == property.Name.ToLower()))
+                {
+                    param.Add(property.Name.ToLower(), property.GetValue(entity));
+                }
+            }
+            return param;
         }
 
         /// <summary>
@@ -168,14 +184,18 @@ namespace CoreMVC.Models.DL
         public List<string> GetColumns(string tableName)
         {
             List<string> columns = new List<string>();
-            MySqlCommand command = conn.CreateCommand();
-            command.CommandType = CommandType.Text;
-            command.CommandText = $"select COLUMN_NAME from information_schema.columns where TABLE_NAME='{tableName}'";
-            DataTable table = command.ExecuteReader().GetSchemaTable();
-            foreach (DataRow row in table.Rows)
+            using (MySqlCommand command = conn.CreateCommand())
             {
-                columns.Add((string)row[0]);
+                command.CommandType = CommandType.Text;
+                command.CommandText = $"select COLUMN_NAME from information_schema.columns where TABLE_NAME='{tableName}'";
+                MySqlDataReader reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    columns.Add(reader.GetString(0));
+                }
+                
             }
+
             return columns;
         }
 
@@ -226,6 +246,43 @@ namespace CoreMVC.Models.DL
         {
             string query = $"SELECT * FROM {TableName} WHERE ID = {id}";
             return Query(query).FirstOrDefault();
+        }
+
+        public string BuildUpdateQuery(List<string> columnNames, string tableName, int id)
+        {
+            string setString = string.Join(",", columnNames.Select(c => $"{c}=@{c}"));
+            return $"UPDATE {tableName} SET {setString} WHERE ID = {id};";
+        }
+
+        /// <summary>
+        /// Cập nhật một enity
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="entity"></param>
+        /// <returns></returns>
+        public bool Update(int id, T entity)
+        {
+            // Danh sách param của câu insert
+            var updateParam = GetParams(entity);
+
+            // Danh sách các cột khớp giữa DB và Entity
+            var columns = updateParam.Keys.ToList();
+
+            // Lấy câu query update
+            string updateQuery = BuildUpdateQuery(columns, TableName, id);
+
+            // Thực hiện insert
+            return Execute(updateQuery, updateParam) > 0;
+        }
+
+        /// <summary>
+        /// Xóa một entity
+        /// </summary>
+        /// <returns>Số bản ghi xóa</returns>
+        public int Delete(int id)
+        {
+            string query = $"DELETE FROM {TableName} WHERE id = @id;";
+            return Execute(query, new Dictionary<string, object> { { "id", id} });
         }
     }
 }

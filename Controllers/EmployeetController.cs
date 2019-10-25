@@ -8,11 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CoreMVC.Controllers
 {
-    public class ProductController : BaseController<Product>
+    public class EmployeeController : BaseController<Employee>
     {
-        public ProductController()
+        public EmployeeController()
         {
-            bl = new BLProduct();
+            bl = new BLEmployee();
         }
     }
 }
