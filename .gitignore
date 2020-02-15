@@ -5,3 +5,5 @@
 /.vs/CoreMVC/v16/Server/sqlite3
 /.vs/CoreMVC/v16
 /.vs/CoreMVC
+/bin
+/obj
